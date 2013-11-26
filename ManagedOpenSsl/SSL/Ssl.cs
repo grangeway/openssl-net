@@ -327,6 +327,11 @@ namespace OpenSSL.SSL
 			return Native.SSL_connect(this.ptr);
 		}
 
+		public void SetPSKClientCallback(Native.psk_client_callback PskClientCallback)
+		{
+			Native.SSL_set_psk_client_callback(this.ptr, PskClientCallback);
+		}
+
 		public SslError GetError(int ret_code)
 		{
 			return (SslError)Native.SSL_get_error(this.ptr, ret_code);

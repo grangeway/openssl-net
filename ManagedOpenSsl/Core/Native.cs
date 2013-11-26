@@ -2254,6 +2254,16 @@ namespace OpenSSL.Core
 
 		#endregion
 
+		#region PSK
+
+		[DllImport(SSLDLLNAME, CallingConvention = CallingConvention.Cdecl)]
+		public extern static void SSL_set_psk_client_callback(IntPtr ssl, psk_client_callback cb);
+
+		[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+		public delegate int psk_client_callback(IntPtr ssl, string hint, IntPtr identity, int max_identity_len, IntPtr psk, int max_psk_len);
+
+		#endregion
+
 		#region SSL Routines
 		#region Initialization
 		[DllImport(SSLDLLNAME, CallingConvention=CallingConvention.Cdecl)]

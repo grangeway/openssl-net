@@ -504,6 +504,28 @@ namespace OpenSSL.SSL
 		/// 
 		/// </summary>
 		/// <param name="targetHost"></param>
+		/// <param name="pskIdentity"></param>
+		/// <param name="pskPassword"></param>
+		/// <param name="sslCiphers"></param>
+		/// <param name="enabledSslProtocols"></param>
+		/// <param name="sslStrength"></param>
+		/// <param name="sslPartialWrites"></param>
+		public virtual void AuthenticateAsClient(
+			string targetHost,
+			string pskIdentity,
+			string pskPassword,
+			string sslCiphers,
+			SslProtocols enabledSslProtocols,
+			SslStrength sslStrength,
+			bool sslPartialWrites)
+		{
+			EndAuthenticateAsClient(BeginAuthenticateAsClient(targetHost, pskIdentity, pskPassword, sslCiphers, enabledSslProtocols, sslStrength, sslPartialWrites, null, null));
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="targetHost"></param>
 		/// <param name="certificates"></param>
 		/// <param name="caCertificates"></param>
 		/// <param name="enabledSslProtocols"></param>
@@ -530,6 +552,43 @@ namespace OpenSSL.SSL
 		public virtual IAsyncResult BeginAuthenticateAsClient(string targetHost, AsyncCallback asyncCallback, Object asyncState)
 		{
 			return BeginAuthenticateAsClient(targetHost, null, null, SslProtocols.Default, SslStrength.Medium, false, asyncCallback, asyncState);
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="targetHost"></param>
+		/// <param name="pskIdentity"></param>
+		/// <param name="pskPassword"></param>
+		/// <param name="sslCiphers"></param>
+		/// <param name="enabledSslProtocols"></param>
+		/// <param name="sslStrength"></param>
+		/// <param name="sslPartialWrites"></param>
+		/// <param name="asyncCallback"></param>
+		/// <param name="asyncState"></param>
+		/// <returns></returns>
+		public virtual IAsyncResult BeginAuthenticateAsClient(
+			string targetHost,
+			string pskIdentity,
+			string pskPassword,
+			string sslCiphers,
+			SslProtocols enabledSslProtocols,
+			SslStrength sslStrength,
+			bool sslPartialWrites,
+			AsyncCallback asyncCallback,
+			Object asyncState)
+		{
+			if (IsAuthenticated)
+			{
+				throw new InvalidOperationException("SslStream is already authenticated");
+			}
+
+			// Create the stream
+			SslStreamClient client_stream = new SslStreamClient(InnerStream, false, targetHost, pskIdentity, pskPassword, sslCiphers, enabledSslProtocols, sslStrength, sslPartialWrites);
+			// set the internal stream
+			sslStream = client_stream;
+			// start the write operation
+			return BeginWrite(new byte[0], 0, 0, asyncCallback, asyncState);
 		}
 
 		/// <summary>

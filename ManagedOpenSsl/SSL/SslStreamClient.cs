@@ -30,6 +30,8 @@ using System.IO;
 using OpenSSL.Core;
 using OpenSSL.Crypto;
 using OpenSSL.X509;
+using System.Runtime.InteropServices;
+
 
 namespace OpenSSL.SSL
 {
@@ -40,7 +42,27 @@ namespace OpenSSL.SSL
 		X509Chain caCertificates;
 		// Internal callback for client certificate selection
 		protected ClientCertCallbackHandler internalCertificateSelectionCallback;
+		// PSK information
+		string pskIdentity;
+		string pskPassword;
 
+		public SslStreamClient(Stream stream,
+			bool ownStream,
+			string targetHost,
+			string pskIdentity,
+			string pskPassword,
+			string sslCiphers,
+			SslProtocols enabledSslProtocols,
+			SslStrength sslStrength,
+			bool sslPartialWrites)
+			: base(stream, ownStream)
+		{
+			this.targetHost = targetHost;
+			this.pskIdentity = pskIdentity;
+			this.pskPassword = pskPassword;
+			InitializeClientContext(clientCertificates, enabledSslProtocols, sslStrength, checkCertificateRevocationStatus, sslCiphers, sslPartialWrites);
+
+		}
 		public SslStreamClient(Stream stream,
 			bool ownStream,
 			string targetHost,
@@ -63,7 +85,7 @@ namespace OpenSSL.SSL
 			InitializeClientContext(clientCertificates, enabledSslProtocols, sslStrength, checkCertificateRevocationStatus);
 		}
 
-		protected void InitializeClientContext(X509List certificates, SslProtocols enabledSslProtocols, SslStrength sslStrength, bool checkCertificateRevocation)
+		protected void InitializeClientContext(X509List certificates, SslProtocols enabledSslProtocols, SslStrength sslStrength, bool checkCertificateRevocation, string sslCiphers = null, bool sslPartialWrites = false )
 		{
 			// Initialize the context with the specified ssl version
 			// Initialize the context
@@ -89,7 +111,20 @@ namespace OpenSSL.SSL
 			// Set the Local certificate selection callback
 			sslContext.SetClientCertCallback(this.internalCertificateSelectionCallback);
 			// Set the enabled cipher list
+			if (sslCiphers == null)
+			{
 			sslContext.SetCipherList(GetCipherString(false, enabledSslProtocols, sslStrength));
+			}
+			else
+			{
+				sslContext.SetCipherList(sslCiphers);
+			}
+
+			if (sslPartialWrites == true )
+			{
+				sslContext.Mode = SslMode.SSL_MODE_ENABLE_PARTIAL_WRITE;
+			}
+
 			// Set the callbacks for remote cert verification and local cert selection
 			if (remoteCertificateSelectionCallback != null)
 			{
@@ -109,7 +144,29 @@ namespace OpenSSL.SSL
 			read_bio.SetClose(BIO.CloseOption.Close);
 			write_bio.SetClose(BIO.CloseOption.Close);
 			// Set the Ssl object into Client mode
+			if (this.pskPassword != null || this.pskIdentity != null)
+			{
+				ssl.SetPSKClientCallback(pskCallback);
+			}
 			ssl.SetConnectState();
+		}
+
+		private int CopyStr(string str, IntPtr outp, int max_length)
+		{
+			byte[] bytes = ASCIIEncoding.ASCII.GetBytes(str);
+			byte[] szbytes = new byte[bytes.Length + 1];
+			bytes.CopyTo(szbytes, 0);
+			szbytes[szbytes.Length - 1] = 0;
+
+			Marshal.Copy(szbytes, 0, outp, szbytes.Length > max_length ? max_length : szbytes.Length);
+
+			return szbytes.Length > max_length ? max_length : szbytes.Length;
+		}
+
+		public int pskCallback(IntPtr ssl, string hint, IntPtr identity, int max_identity_len, IntPtr psk, int max_psk_len)
+		{
+			CopyStr(this.pskIdentity, identity, max_identity_len);
+			return CopyStr(this.pskPassword, psk, max_psk_len) - 1;
 		}
 
 		internal protected override bool ProcessHandshake()
